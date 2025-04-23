@@ -50,6 +50,25 @@ app.post('/reset-restart', async (req, res) => {
     res.sendStatus(200);
 });
 
+// Get maintenance status
+app.get('/maintenance-status', async (req, res) => {
+    const control = await db.collection('adminControls').findOne({ type: 'maintenance' });
+    res.json({ status: control?.status || false });
+});
+
+// Toggle maintenance mode
+app.post('/toggle-maintenance', async (req, res) => {
+    const control = await db.collection('adminControls').findOne({ type: 'maintenance' });
+    const newStatus = !(control?.status || false);
+    await db.collection('adminControls').updateOne(
+        { type: 'maintenance' },
+        { $set: { status: newStatus } },
+        { upsert: true }
+    );
+    res.json({ status: newStatus });
+});
+
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

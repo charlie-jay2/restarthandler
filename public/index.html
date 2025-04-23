@@ -23,26 +23,37 @@
 </head>
 <body>
   <button id="restartBtn">Restart Game</button>
-
+  <button id="maintenanceBtn" style="margin-left: 20px;">Toggle Maintenance</button>
+  
   <script>
     const restartBtn = document.getElementById('restartBtn');
-
+    const maintenanceBtn = document.getElementById('maintenanceBtn');
+  
     restartBtn.addEventListener('click', async () => {
       restartBtn.disabled = true;
       restartBtn.textContent = "Restarting...";
-
-      // Instantly update DB to trigger restart
       await fetch('/restart', { method: 'POST' });
-
-      // Wait 7 seconds
       setTimeout(async () => {
-        // Reset the restart flag in DB
         await fetch('/reset-restart', { method: 'POST' });
-
-        // Re-enable button
         restartBtn.disabled = false;
         restartBtn.textContent = "Restart Game";
       }, 7000);
+    });
+  
+    maintenanceBtn.addEventListener('click', async () => {
+      maintenanceBtn.disabled = true;
+      maintenanceBtn.textContent = "Toggling...";
+      const response = await fetch('/toggle-maintenance', { method: 'POST' });
+      const data = await response.json();
+      maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
+      maintenanceBtn.disabled = false;
+    });
+  
+    // Optional: Show current state on load
+    window.addEventListener('DOMContentLoaded', async () => {
+      const res = await fetch('/maintenance-status');
+      const data = await res.json();
+      maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
     });
   </script>
 </body>
