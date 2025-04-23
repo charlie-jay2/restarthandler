@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Admin Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f2f2f2; }
+    button {
+      padding: 15px 25px;
+      font-size: 20px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <button id="restartBtn">Restart Game</button>
+
+  <script>
+    const restartBtn = document.getElementById('restartBtn');
+
+    restartBtn.addEventListener('click', async () => {
+      restartBtn.disabled = true;
+      let count = 3;
+
+      restartBtn.textContent = `Restarting in ${count}...`;
+
+      const interval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          restartBtn.textContent = `Restarting in ${count}...`;
+        } else {
+          clearInterval(interval);
+          restartBtn.textContent = "Restart Game";
+          restartBtn.disabled = false;
+        }
+      }, 1000);
+
+      // Trigger restart in DB
+      await fetch('/restart', { method: 'POST' });
+
+      // Automatically reset after 3 seconds (same as countdown)
+      setTimeout(() => {
+        fetch('/reset-restart', { method: 'POST' });
+      }, 3000);
+    });
+  </script>
+</body>
+</html>
