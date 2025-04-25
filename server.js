@@ -78,7 +78,7 @@ app.post('/reset-restart', async (req, res) => {
 app.post('/update-server', (req, res) => {
     const { serverId, players } = req.body;
     serverData[serverId] = players;
-    io.emit('serverUpdate', { serverId, players });
+    io.emit('serverUpdate', { serverId, players });  // Emit to front-end
     res.sendStatus(200);
 });
 
