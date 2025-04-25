@@ -137,19 +137,19 @@
       // Load reports
       const reportRes = await fetch('/get-reports');
       const reports = await reportRes.json();
-      console.log('Fetched Reports:', reports);  // Log the reports to check for missing '_id'
+      console.log('Fetched Reports:', reports);  // Log the reports to check for missing 'id'
 
       if (Array.isArray(reports)) {
         reports.forEach(report => {
-          if (!report._id) {
-            console.error("Missing report _id:", report);  // Log the report missing an '_id'
+          if (!report.id) {
+            console.error("Missing report id:", report);  // Log the report missing an ID
           } else {
             const row = reportListTable.insertRow();
             row.innerHTML = `
-              <td>${report._id}</td>
+              <td>${report.id}</td>
               <td>${report.status}</td>
               <td>${report.outcome || 'Not Set'}</td>
-              <td><button onclick="editReport('${report._id}')">Edit</button></td>
+              <td><button onclick="editReport(${report.id})">Edit</button></td>
             `;
           }
         });
@@ -210,15 +210,15 @@
     const editReport = async (reportId) => {
       const res = await fetch(`/get-report/${reportId}`);
       const report = await res.json();
-      selectedReportId = report._id;
+      selectedReportId = report.id;
       statusSelect.value = report.status;
       outcomeText.value = report.outcome || '';
-      popupOverlay.style.display = 'flex';
+      popupOverlay.style.display = 'flex';  // Show the popup
     };
 
     // Close the popup
     closePopupBtn.addEventListener('click', () => {
-      popupOverlay.style.display = 'none';
+      popupOverlay.style.display = 'none';  // Hide the popup
     });
 
     // Save outcome and send to server
@@ -235,7 +235,7 @@
 
       if (response.ok) {
         alert('Outcome saved successfully!');
-        popupOverlay.style.display = 'none';
+        popupOverlay.style.display = 'none';  // Hide the popup after saving
         location.reload();  // Reload the page to update the report list
       } else {
         alert('Failed to save outcome.');
