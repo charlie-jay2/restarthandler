@@ -226,7 +226,7 @@ app.get('/report-status', async (req, res) => {
 
 app.get('/get-reports', async (req, res) => {
     try {
-        const reports = await Report.find(); // Fetch reports from the database
+        const reports = await db.collection('reports').find().toArray(); // Fetch reports from the database
         res.json(reports); // Send the reports as JSON
     } catch (error) {
         console.error(error);
