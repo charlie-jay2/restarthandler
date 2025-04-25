@@ -137,15 +137,24 @@
       // Load reports
       const reportRes = await fetch('/get-reports');
       const reports = await reportRes.json();
-      reports.forEach(report => {
-        const row = reportListTable.insertRow();
-        row.innerHTML = `
-          <td>${report.id}</td>
-          <td>${report.status}</td>
-          <td>${report.outcome || 'Not Set'}</td>
-          <td><button onclick="editReport(${report.id})">Edit</button></td>
-        `;
-      });
+
+      if (Array.isArray(reports)) {
+        reports.forEach(report => {
+          if (!report.id) {
+            console.error("Missing report id:", report);
+          } else {
+            const row = reportListTable.insertRow();
+            row.innerHTML = `
+              <td>${report.id}</td>
+              <td>${report.status}</td>
+              <td>${report.outcome || 'Not Set'}</td>
+              <td><button onclick="editReport(${report.id})">Edit</button></td>
+            `;
+          }
+        });
+      } else {
+        console.error("Invalid report data:", reports);
+      }
     });
 
     socket.on('serverUpdate', ({ serverId, players }) => {
@@ -183,15 +192,15 @@
 
     window.kick = async (serverId, userId) => {
       const reason = prompt("Enter reason for kicking:"); if (!reason) return;
-      await fetch('/command', { method:'POST', headers:{'Content-Type':'application/json'},
+      await fetch('/command',{ method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ serverId, action:'kick', targetUserId:userId, reason })
       });
     };
 
     window.ban = async (serverId, userId) => {
       const reason = prompt("Enter reason for banning:"); if (!reason) return;
-      const duration = prompt("Duration in minutes (0=permanent):"); if (duration === null) return;
-      await fetch('/command', { method:'POST', headers:{'Content-Type':'application/json'},
+      const duration = prompt("Duration in minutes (0=permanent):"); if (duration===null) return;
+      await fetch('/command',{ method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ serverId, action:'ban', targetUserId:userId, reason, duration:Number(duration) })
       });
     };
