@@ -149,12 +149,6 @@ app.post('/send-moderation-notification', async (req, res) => {
         // Emit a notification signal to the specific client via Socket.io
         io.to(userId).emit('moderationNotification', { userId });
 
-        // Update the status in the database to mark it as shown (true) after the notification is sent
-        await db.collection('notifications').updateOne(
-            { userId },
-            { $set: { shown: true } }
-        );
-
         console.log(`🔔 Sent moderation notification to user ID: ${userId}`);
     } else {
         console.log(`🔔 User ID ${userId} has already seen the moderation notification.`);
@@ -162,6 +156,7 @@ app.post('/send-moderation-notification', async (req, res) => {
 
     res.sendStatus(200);
 });
+
 
 // Endpoint to check if player is banned
 app.get('/check-ban', async (req, res) => {
