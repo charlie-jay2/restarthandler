@@ -13,6 +13,35 @@
     th { background-color: #4CAF50; color: white; }
     h2 { margin-top: 40px; }
     .control-bar { margin-bottom: 30px; }
+    /* Popup styles */
+    .popup-overlay { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0, 0, 0, 0.7); 
+      display: none; 
+      justify-content: center; 
+      align-items: center; 
+    }
+    .popup { 
+      background: white; 
+      padding: 20px; 
+      border-radius: 10px; 
+      width: 400px; 
+      text-align: center; 
+    }
+    .popup input, .popup textarea { 
+      width: 100%; 
+      margin: 10px 0; 
+      padding: 10px; 
+      border: 1px solid #ccc; 
+      border-radius: 6px; 
+    }
+    .popup button { 
+      margin-top: 10px; 
+    }
   </style>
 </head>
 <body>
@@ -36,6 +65,20 @@
     <tbody></tbody>
   </table>
 
+  <!-- Popup Modal for Outcome -->
+  <div id="popupOverlay" class="popup-overlay">
+    <div class="popup">
+      <h3>Change Status</h3>
+      <select id="statusSelect">
+        <option value="accepted">Accepted</option>
+        <option value="denied">Denied</option>
+      </select>
+      <textarea id="outcomeText" placeholder="Enter Outcome Details..." rows="4"></textarea>
+      <button id="saveOutcomeBtn">Save Outcome</button>
+      <button id="closePopupBtn">Close</button>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const restartBtn = document.getElementById('restartBtn');
@@ -44,6 +87,11 @@
     const sendNotificationBtn = document.getElementById('sendNotificationBtn');
     const userIDInput = document.getElementById('userIDInput');
     const moderationNotificationsTable = document.querySelector('#moderationNotificationsTable tbody');
+    const popupOverlay = document.getElementById('popupOverlay');
+    const statusSelect = document.getElementById('statusSelect');
+    const outcomeText = document.getElementById('outcomeText');
+    const saveOutcomeBtn = document.getElementById('saveOutcomeBtn');
+    const closePopupBtn = document.getElementById('closePopupBtn');
     const socket = io();
 
     restartBtn.addEventListener('click', async () => {
@@ -79,14 +127,14 @@
           <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
         </thead>
         <tbody>
-          ${players.map(p => `
-            <tr>
+          ${players.map(p => 
+            `<tr>
               <td>${p.username}</td>
               <td>${p.userId}</td>
               <td><button onclick="kick('${serverId}', ${p.userId})">Kick</button></td>
               <td><button onclick="ban('${serverId}', ${p.userId})">Ban</button></td>
-            </tr>
-          `).join('')}
+            </tr>`
+          ).join('')}
         </tbody>
       `;
       serversDiv.appendChild(table);
@@ -109,6 +157,7 @@
         body: JSON.stringify({ serverId, action:'kick', targetUserId:userId, reason })
       });
     };
+
     window.ban = async (serverId, userId) => {
       const reason = prompt("Enter reason for banning:"); if (!reason) return;
       const duration = prompt("Duration in minutes (0=permanent):"); if (duration===null) return;
@@ -116,6 +165,36 @@
         body: JSON.stringify({ serverId, action:'ban', targetUserId:userId, reason, duration:Number(duration) })
       });
     };
+
+    // Open the popup
+    const openPopup = () => {
+      popupOverlay.style.display = 'flex';
+    };
+
+    // Close the popup
+    closePopupBtn.addEventListener('click', () => {
+      popupOverlay.style.display = 'none';
+    });
+
+    // Save outcome and send to server
+    saveOutcomeBtn.addEventListener('click', async () => {
+      const status = statusSelect.value;
+      const outcome = outcomeText.value.trim();
+      if (!outcome) return alert('Please provide an outcome description.');
+
+      const response = await fetch('/save-outcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, outcome })
+      });
+
+      if (response.ok) {
+        alert('Outcome saved successfully!');
+        popupOverlay.style.display = 'none';
+      } else {
+        alert('Failed to save outcome.');
+      }
+    });
   </script>
 </body>
 </html>
