@@ -224,6 +224,16 @@ app.get('/report-status', async (req, res) => {
     });
 });
 
+app.get('/get-reports', async (req, res) => {
+    try {
+        const reports = await Report.find(); // Fetch reports from the database
+        res.json(reports); // Send the reports as JSON
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch reports' });
+    }
+});
+
 // Admin updates a report’s status/note
 app.post('/reports/:reference/update', async (req, res) => {
     const { reference } = req.params;
