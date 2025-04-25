@@ -139,8 +139,8 @@ app.post('/send-moderation-notification', async (req, res) => {
     const notificationStatus = await db.collection('notifications').findOne({ userId });
 
     if (!notificationStatus || notificationStatus.shown === false) {
-        // Emit a notification signal to all clients via Socket.io
-        io.emit('moderationNotification', { userId });
+        // Emit a notification signal to the specific client via Socket.io
+        io.to(userId).emit('moderationNotification', { userId });
 
         // Update the status in the database to mark it as shown
         await db.collection('notifications').updateOne(
