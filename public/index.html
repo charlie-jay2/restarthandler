@@ -65,6 +65,22 @@
     <tbody></tbody>
   </table>
 
+  <!-- Report List -->
+  <h3>Report List</h3>
+  <table id="reportListTable">
+    <thead>
+      <tr>
+        <th>Report ID</th>
+        <th>Status</th>
+        <th>Outcome</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Reports will be dynamically loaded here -->
+    </tbody>
+  </table>
+
   <!-- Popup Modal for Outcome -->
   <div id="popupOverlay" class="popup-overlay">
     <div class="popup">
@@ -87,11 +103,13 @@
     const sendNotificationBtn = document.getElementById('sendNotificationBtn');
     const userIDInput = document.getElementById('userIDInput');
     const moderationNotificationsTable = document.querySelector('#moderationNotificationsTable tbody');
+    const reportListTable = document.querySelector('#reportListTable tbody');
     const popupOverlay = document.getElementById('popupOverlay');
     const statusSelect = document.getElementById('statusSelect');
     const outcomeText = document.getElementById('outcomeText');
     const saveOutcomeBtn = document.getElementById('saveOutcomeBtn');
     const closePopupBtn = document.getElementById('closePopupBtn');
+    let selectedReportId = null;
     const socket = io();
 
     restartBtn.addEventListener('click', async () => {
@@ -115,6 +133,19 @@
       const res = await fetch('/maintenance-status');
       const data = await res.json();
       maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
+
+      // Load reports
+      const reportRes = await fetch('/get-reports');
+      const reports = await reportRes.json();
+      reports.forEach(report => {
+        const row = reportListTable.insertRow();
+        row.innerHTML = `
+          <td>${report.id}</td>
+          <td>${report.status}</td>
+          <td>${report.outcome || 'Not Set'}</td>
+          <td><button onclick="editReport(${report.id})">Edit</button></td>
+        `;
+      });
     });
 
     socket.on('serverUpdate', ({ serverId, players }) => {
@@ -166,8 +197,13 @@
       });
     };
 
-    // Open the popup
-    const openPopup = () => {
+    // Open the popup and load current report details for editing
+    const editReport = async (reportId) => {
+      const res = await fetch(`/get-report/${reportId}`);
+      const report = await res.json();
+      selectedReportId = report.id;
+      statusSelect.value = report.status;
+      outcomeText.value = report.outcome || '';
       popupOverlay.style.display = 'flex';
     };
 
@@ -185,12 +221,13 @@
       const response = await fetch('/save-outcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, outcome })
+        body: JSON.stringify({ reportId: selectedReportId, status, outcome })
       });
 
       if (response.ok) {
         alert('Outcome saved successfully!');
         popupOverlay.style.display = 'none';
+        location.reload();  // Reload the page to update the report list
       } else {
         alert('Failed to save outcome.');
       }
