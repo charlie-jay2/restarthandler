@@ -77,12 +77,17 @@ app.post('/reset-restart', async (req, res) => {
 // Receive in-game server data
 app.post('/update-server', (req, res) => {
     const { serverId, players } = req.body;
+    if (!serverId || !players) {
+        return res.status(400).json({ error: "Missing serverId or players data" });
+    }
+
+    // Store or process the server data
     serverData[serverId] = players;
 
-    // Emit to all connected clients (Live Game Servers section)
+    // Emit the update to clients connected via Socket.io
     io.emit('serverUpdate', { serverId, players });
 
-    console.log(`Received server data from ${serverId} with ${players.length} players`);
+    console.log(`Server data updated for ${serverId}:`, players);
 
     res.sendStatus(200);
 });
