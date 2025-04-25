@@ -5,6 +5,7 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const dotenv = require('dotenv');
+const { nanoid } = require('nanoid');    // add nanoid for unique codes
 
 dotenv.config();
 
@@ -188,6 +189,60 @@ app.get('/check-ban', async (req, res) => {
     } else {
         res.json({ banned: false });
     }
+});
+
+app.post('/reports', async (req, res) => {
+    const { reporterId, reportedId, description } = req.body;
+    if (!reporterId || !reportedId || !description) {
+        return res.status(400).json({ error: 'reporterId, reportedId and description are required' });
+    }
+    const reference = nanoid(8);
+    const now = new Date().toISOString();
+    const doc = {
+        reference,
+        reporterId,
+        reportedId,
+        description,
+        status: 'Received',
+        history: [{ status: 'Received', time: now, note: '' }]
+    };
+    await db.collection('reports').insertOne(doc);
+    res.json({ reference });
+});
+
+// Lookup report by reference
+app.get('/report-status', async (req, res) => {
+    const { reference } = req.query;
+    if (!reference) return res.status(400).json({ error: 'reference is required' });
+    const report = await db.collection('reports').findOne({ reference });
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json({
+        reference: report.reference,
+        status: report.status,
+        description: report.description,
+        history: report.history
+    });
+});
+
+// Admin updates a report’s status/note
+app.post('/reports/:reference/update', async (req, res) => {
+    const { reference } = req.params;
+    const { status, note } = req.body;
+    if (!status) return res.status(400).json({ error: 'status is required' });
+    const now = new Date().toISOString();
+    await db.collection('reports').updateOne(
+        { reference },
+        {
+            $set: { status },
+            $push: { history: { status, time: now, note: note || '' } }
+        }
+    );
+    res.sendStatus(200);
+});
+
+// Serve the reports lookup page
+app.get('/reports', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
 // Start the server

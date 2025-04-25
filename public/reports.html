@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Report Status</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+    input, button { padding: 8px; font-size: 14px; }
+    #result { margin-top: 20px; background: #fff; padding: 20px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .history { margin-top: 10px; }
+    .history-item { border-bottom: 1px solid #eee; padding: 6px 0; }
+  </style>
+</head>
+<body>
+  <h1>Check Your Report</h1>
+  <p>Enter your unique reference code to see the status of your report.</p>
+  <input type="text" id="refInput" placeholder="Reference code">
+  <button id="checkBtn">Check Status</button>
+
+  <div id="result" style="display:none;">
+    <h2>Report <span id="refDisplay"></span></h2>
+    <p><strong>Description:</strong> <span id="desc"></span></p>
+    <p><strong>Current Status:</strong> <span id="status"></span></p>
+    <div class="history">
+      <h3>History</h3>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('checkBtn').addEventListener('click', async () => {
+      const reference = document.getElementById('refInput').value.trim();
+      if (!reference) return alert('Please enter a reference code.');
+      const res = await fetch(`/report-status?reference=${reference}`);
+      if (res.status === 404) return alert('No report found with that reference.');
+      const data = await res.json();
+      document.getElementById('refDisplay').textContent = data.reference;
+      document.getElementById('desc').textContent = data.description;
+      document.getElementById('status').textContent = data.status;
+      const histDiv = document.getElementById('historyList');
+      histDiv.innerHTML = '';
+      data.history.forEach(h => {
+        const div = document.createElement('div');
+        div.classList.add('history-item');
+        div.textContent = `${new Date(h.time).toLocaleString()}: ${h.status}` + (h.note ? ` — ${h.note}` : '');
+        histDiv.appendChild(div);
+      });
+      document.getElementById('result').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

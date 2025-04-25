@@ -5,48 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Game Admin Panel</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-      background: #f2f2f2;
-    }
-    button {
-      padding: 10px 16px;
-      font-size: 16px;
-      border: none;
-      background-color: #4CAF50;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-right: 10px;
-    }
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 30px;
-      background: #fff;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    th, td {
-      padding: 12px;
-      border: 1px solid #ccc;
-      text-align: left;
-    }
-    th {
-      background-color: #4CAF50;
-      color: white;
-    }
-    h2 {
-      margin-top: 40px;
-    }
-    .control-bar {
-      margin-bottom: 30px;
-    }
+    body { font-family: Arial, sans-serif; padding: 30px; background: #f2f2f2; }
+    button { padding: 10px 16px; font-size: 16px; border: none; background-color: #4CAF50; color: white; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; margin-top: 30px; background: #fff; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 12px; border: 1px solid #ccc; text-align: left; }
+    th { background-color: #4CAF50; color: white; }
+    h2 { margin-top: 40px; }
+    .control-bar { margin-bottom: 30px; }
   </style>
 </head>
 <body>
@@ -54,6 +20,7 @@
   <div class="control-bar">
     <button id="restartBtn">Restart Game</button>
     <button id="maintenanceBtn">Toggle Maintenance</button>
+    <a href="/reports">View Reports Page</a>
   </div>
 
   <h2>Live Game Servers</h2>
@@ -65,15 +32,8 @@
     <button id="sendNotificationBtn">Send Notification</button>
   </div>
   <table id="moderationNotificationsTable">
-    <thead>
-      <tr>
-        <th>User ID</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- Notifications will be added here -->
-    </tbody>
+    <thead><tr><th>User ID</th><th>Action</th></tr></thead>
+    <tbody></tbody>
   </table>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -83,25 +43,22 @@
     const serversDiv = document.getElementById('servers');
     const sendNotificationBtn = document.getElementById('sendNotificationBtn');
     const userIDInput = document.getElementById('userIDInput');
-    const moderationNotificationsTable = document.getElementById('moderationNotificationsTable').getElementsByTagName('tbody')[0];
+    const moderationNotificationsTable = document.querySelector('#moderationNotificationsTable tbody');
     const socket = io();
 
     restartBtn.addEventListener('click', async () => {
-      restartBtn.disabled = true;
-      restartBtn.textContent = "Restarting...";
+      restartBtn.disabled = true; restartBtn.textContent = "Restarting...";
       await fetch('/restart', { method: 'POST' });
       setTimeout(async () => {
         await fetch('/reset-restart', { method: 'POST' });
-        restartBtn.disabled = false;
-        restartBtn.textContent = "Restart Game";
+        restartBtn.disabled = false; restartBtn.textContent = "Restart Game";
       }, 7000);
     });
 
     maintenanceBtn.addEventListener('click', async () => {
-      maintenanceBtn.disabled = true;
-      maintenanceBtn.textContent = "Toggling...";
-      const response = await fetch('/toggle-maintenance', { method: 'POST' });
-      const data = await response.json();
+      maintenanceBtn.disabled = true; maintenanceBtn.textContent = "Toggling...";
+      const res = await fetch('/toggle-maintenance', { method: 'POST' });
+      const data = await res.json();
       maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
       maintenanceBtn.disabled = false;
     });
@@ -113,97 +70,50 @@
     });
 
     socket.on('serverUpdate', ({ serverId, players }) => {
-      renderServers(serverId, players);
-    });
-
-    socket.on('moderationNotification', ({ userId }) => {
-      alert(`Moderation notification sent to user ${userId}`);
-    });
-
-    function renderServers(serverId, players) {
-      const existingTable = document.getElementById(`table-${serverId}`);
-      if (existingTable) existingTable.remove();
-
-      const table = document.createElement('table');
-      table.id = `table-${serverId}`;
-      const header = `
+      const existing = document.getElementById(`table-${serverId}`);
+      if (existing) existing.remove();
+      const table = document.createElement('table'); table.id = `table-${serverId}`;
+      table.innerHTML = `
         <thead>
-          <tr>
-            <th colspan="4">Server ID: ${serverId}</th>
-          </tr>
-          <tr>
-            <th>Username</th>
-            <th>User ID</th>
-            <th>Kick</th>
-            <th>Ban</th>
-          </tr>
+          <tr><th colspan="4">Server ID: ${serverId}</th></tr>
+          <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
         </thead>
+        <tbody>
+          ${players.map(p => `
+            <tr>
+              <td>${p.username}</td>
+              <td>${p.userId}</td>
+              <td><button onclick="kick('${serverId}', ${p.userId})">Kick</button></td>
+              <td><button onclick="ban('${serverId}', ${p.userId})">Ban</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
       `;
-      let body = '<tbody>';
-      players.forEach(player => {
-        body += `
-          <tr>
-            <td>${player.username}</td>
-            <td>${player.userId}</td>
-            <td><button onclick="kick('${serverId}', ${player.userId})">Kick</button></td>
-            <td><button onclick="ban('${serverId}', ${player.userId})">Ban</button></td>
-          </tr>
-        `;
-      });
-      body += '</tbody>';
-      table.innerHTML = header + body;
       serversDiv.appendChild(table);
-    }
+    });
 
     sendNotificationBtn.addEventListener('click', async () => {
       const userID = userIDInput.value.trim();
-      if (!userID) {
-        alert('Please enter a valid User ID');
-        return;
-      }
-
-      // Send a signal to the game
+      if (!userID) return alert('Please enter a valid User ID');
       await fetch('/send-moderation-notification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ userId: userID })
       });
-
-      // Add to the table (for display purposes in the admin panel)
       const row = moderationNotificationsTable.insertRow();
       row.innerHTML = `<td>${userID}</td><td>Notification Sent</td>`;
     });
 
     window.kick = async (serverId, userId) => {
-      const reason = prompt("Enter reason for kicking:");
-      if (!reason) return;
-      await fetch('/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serverId,
-          action: 'kick',
-          targetUserId: userId,
-          reason
-        })
+      const reason = prompt("Enter reason for kicking:"); if (!reason) return;
+      await fetch('/command',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ serverId, action:'kick', targetUserId:userId, reason })
       });
     };
-
     window.ban = async (serverId, userId) => {
-      const reason = prompt("Enter reason for banning:");
-      if (!reason) return;
-      const duration = prompt("Duration in minutes (0 for permanent):");
-      if (duration === null) return;
-      await fetch('/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serverId,
-          action: 'ban',
-          targetUserId: userId,
-          reason,
-          duration: Number(duration)
-        })
+      const reason = prompt("Enter reason for banning:"); if (!reason) return;
+      const duration = prompt("Duration in minutes (0=permanent):"); if (duration===null) return;
+      await fetch('/command',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ serverId, action:'ban', targetUserId:userId, reason, duration:Number(duration) })
       });
     };
   </script>
