@@ -137,11 +137,12 @@
       // Load reports
       const reportRes = await fetch('/get-reports');
       const reports = await reportRes.json();
+      console.log('Fetched Reports:', reports);  // Log the reports to check for missing 'id'
 
       if (Array.isArray(reports)) {
         reports.forEach(report => {
           if (!report.id) {
-            console.error("Missing report id:", report);
+            console.error("Missing report id:", report);  // Log the report missing an ID
           } else {
             const row = reportListTable.insertRow();
             row.innerHTML = `
@@ -153,7 +154,7 @@
           }
         });
       } else {
-        console.error("Invalid report data:", reports);
+        console.error("Invalid report data:", reports);  // Log if the reports array is invalid
       }
     });
 
