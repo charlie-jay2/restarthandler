@@ -78,7 +78,12 @@ app.post('/reset-restart', async (req, res) => {
 app.post('/update-server', (req, res) => {
     const { serverId, players } = req.body;
     serverData[serverId] = players;
-    io.emit('serverUpdate', { serverId, players });  // Emit to front-end
+
+    // Emit to all connected clients (Live Game Servers section)
+    io.emit('serverUpdate', { serverId, players });
+
+    console.log(`Received server data from ${serverId} with ${players.length} players`);
+
     res.sendStatus(200);
 });
 
