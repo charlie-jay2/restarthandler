@@ -15,33 +15,12 @@
     .control-bar { margin-bottom: 30px; }
     /* Popup styles */
     .popup-overlay { 
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      width: 100%; 
-      height: 100%; 
-      background: rgba(0, 0, 0, 0.7); 
-      display: none; 
-      justify-content: center; 
-      align-items: center; 
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center;
     }
-    .popup { 
-      background: white; 
-      padding: 20px; 
-      border-radius: 10px; 
-      width: 400px; 
-      text-align: center; 
-    }
-    .popup input, .popup textarea { 
-      width: 100%; 
-      margin: 10px 0; 
-      padding: 10px; 
-      border: 1px solid #ccc; 
-      border-radius: 6px; 
-    }
-    .popup button { 
-      margin-top: 10px; 
-    }
+    .popup { background: white; padding: 20px; border-radius: 10px; width: 400px; text-align: center; }
+    .popup input, .popup textarea, .popup select { width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+    .popup button { margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -65,29 +44,22 @@
     <tbody></tbody>
   </table>
 
-  <!-- Report List -->
   <h3>Report List</h3>
   <table id="reportListTable">
     <thead>
-      <tr>
-        <th>Report ID</th>
-        <th>Status</th>
-        <th>Outcome</th>
-        <th>Actions</th>
-      </tr>
+      <tr><th>Report ID</th><th>Status</th><th>Outcome</th><th>Actions</th></tr>
     </thead>
-    <tbody>
-      <!-- Reports will be dynamically loaded here -->
-    </tbody>
+    <tbody></tbody>
   </table>
 
-  <!-- Popup Modal for Outcome -->
   <div id="popupOverlay" class="popup-overlay">
     <div class="popup">
       <h3>Change Status</h3>
       <select id="statusSelect">
-        <option value="accepted">Accepted</option>
-        <option value="denied">Denied</option>
+        <option value="Received">Received</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Accepted">Accepted</option>
+        <option value="Denied">Denied</option>
       </select>
       <textarea id="outcomeText" placeholder="Enter Outcome Details..." rows="4"></textarea>
       <button id="saveOutcomeBtn">Save Outcome</button>
@@ -109,138 +81,107 @@
     const outcomeText = document.getElementById('outcomeText');
     const saveOutcomeBtn = document.getElementById('saveOutcomeBtn');
     const closePopupBtn = document.getElementById('closePopupBtn');
-    let selectedReportId = null;
+    let selectedReference = null;
     const socket = io();
 
+    // Restart / Maintenance buttons (unchanged) …
     restartBtn.addEventListener('click', async () => {
       restartBtn.disabled = true; restartBtn.textContent = "Restarting...";
-      await fetch('/restart', { method: 'POST' });
+      await fetch('/restart',{method:'POST'});
       setTimeout(async () => {
-        await fetch('/reset-restart', { method: 'POST' });
+        await fetch('/reset-restart',{method:'POST'});
         restartBtn.disabled = false; restartBtn.textContent = "Restart Game";
-      }, 7000);
+      },7000);
     });
-
     maintenanceBtn.addEventListener('click', async () => {
       maintenanceBtn.disabled = true; maintenanceBtn.textContent = "Toggling...";
-      const res = await fetch('/toggle-maintenance', { method: 'POST' });
+      const res = await fetch('/toggle-maintenance',{method:'POST'});
       const data = await res.json();
-      maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
+      maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
       maintenanceBtn.disabled = false;
     });
-
     window.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/maintenance-status');
       const data = await res.json();
-      maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
-
-      // Load reports
-      const reportRes = await fetch('/get-reports');
-      const reports = await reportRes.json();
-      console.log('Fetched Reports:', reports);  // Log the reports to check for missing 'id'
-
-      if (Array.isArray(reports)) {
-        reports.forEach(report => {
-          if (!report.id) {
-            console.error("Missing report id:", report);  // Log the report missing an ID
-          } else {
-            const row = reportListTable.insertRow();
-            row.innerHTML = `
-              <td>${report.id}</td>
-              <td>${report.status}</td>
-              <td>${report.outcome || 'Not Set'}</td>
-              <td><button onclick="editReport(${report.id})">Edit</button></td>
-            `;
-          }
-        });
-      } else {
-        console.error("Invalid report data:", reports);  // Log if the reports array is invalid
-      }
+      maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
+      loadReports();
     });
 
-    socket.on('serverUpdate', ({ serverId, players }) => {
-      const existing = document.getElementById(`table-${serverId}`);
-      if (existing) existing.remove();
-      const table = document.createElement('table'); table.id = `table-${serverId}`;
-      table.innerHTML = `
+    // Load and render reports
+    async function loadReports(){
+      reportListTable.innerHTML = '';
+      const r = await fetch('/get-reports');
+      const reports = await r.json();
+      console.log('Fetched Reports:', reports);
+      if(Array.isArray(reports)){
+        reports.forEach(rp=>{
+          const ref = rp.reference;
+          const out = (rp.history && rp.history.length>0)? rp.history[rp.history.length-1].note : 'Not Set';
+          const row = reportListTable.insertRow();
+          row.innerHTML = `
+            <td>${ref}</td>
+            <td>${rp.status}</td>
+            <td>${out}</td>
+            <td><button onclick="editReport('${ref}')">Edit</button></td>
+          `;
+        });
+      }
+    }
+
+    // Open edit popup
+    window.editReport = async (ref) => {
+      const res = await fetch(`/report-status?reference=${ref}`);
+      const rep = await res.json();
+      selectedReference = rep.reference;
+      statusSelect.value = rep.status;
+      outcomeText.value = '';
+      popupOverlay.style.display = 'flex';
+    };
+    closePopupBtn.addEventListener('click', ()=> popupOverlay.style.display = 'none');
+
+    // Save outcome
+    saveOutcomeBtn.addEventListener('click', async () => {
+      const status = statusSelect.value;
+      const note = outcomeText.value.trim();
+      if(!note) return alert('Enter an outcome note');
+      await fetch(`/reports/${selectedReference}/update`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status, note })
+      });
+      popupOverlay.style.display = 'none';
+      loadReports();
+    });
+
+    // Socket & moderation (unchanged) …
+    socket.on('serverUpdate', ({serverId,players})=>{
+      const ex = document.getElementById(`table-${serverId}`);
+      if(ex) ex.remove();
+      const t = document.createElement('table'); t.id=`table-${serverId}`;
+      t.innerHTML=`
         <thead>
           <tr><th colspan="4">Server ID: ${serverId}</th></tr>
           <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
         </thead>
         <tbody>
-          ${players.map(p => 
-            `<tr>
+          ${players.map(p=>`
+            <tr>
               <td>${p.username}</td>
               <td>${p.userId}</td>
-              <td><button onclick="kick('${serverId}', ${p.userId})">Kick</button></td>
-              <td><button onclick="ban('${serverId}', ${p.userId})">Ban</button></td>
+              <td><button onclick="kick('${serverId}',${p.userId})">Kick</button></td>
+              <td><button onclick="ban('${serverId}',${p.userId})">Ban</button></td>
             </tr>`).join('')}
-        </tbody>
-      `;
-      serversDiv.appendChild(table);
+        </tbody>`;
+      serversDiv.appendChild(t);
     });
-
-    sendNotificationBtn.addEventListener('click', async () => {
-      const userID = userIDInput.value.trim();
-      if (!userID) return alert('Please enter a valid User ID');
-      await fetch('/send-moderation-notification', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ userId: userID })
-      });
-      const row = moderationNotificationsTable.insertRow();
-      row.innerHTML = `<td>${userID}</td><td>Notification Sent</td>`;
+    sendNotificationBtn.addEventListener('click', async ()=>{
+      const u=userIDInput.value.trim(); if(!u) return alert('Enter valid User ID');
+      await fetch('/send-moderation-notification',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u})});
+      const row=moderationNotificationsTable.insertRow();
+      row.innerHTML=`<td>${u}</td><td>Notification Sent</td>`;
     });
-
-    window.kick = async (serverId, userId) => {
-      const reason = prompt("Enter reason for kicking:"); if (!reason) return;
-      await fetch('/command',{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ serverId, action:'kick', targetUserId:userId, reason })
-      });
-    };
-
-    window.ban = async (serverId, userId) => {
-      const reason = prompt("Enter reason for banning:"); if (!reason) return;
-      const duration = prompt("Duration in minutes (0=permanent):"); if (duration===null) return;
-      await fetch('/command',{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ serverId, action:'ban', targetUserId:userId, reason, duration:Number(duration) })
-      });
-    };
-
-    // Open the popup and load current report details for editing
-    const editReport = async (reportId) => {
-      const res = await fetch(`/get-report/${reportId}`);
-      const report = await res.json();
-      selectedReportId = report.id;
-      statusSelect.value = report.status;
-      outcomeText.value = report.outcome || '';
-      popupOverlay.style.display = 'flex';  // Show the popup
-    };
-
-    // Close the popup
-    closePopupBtn.addEventListener('click', () => {
-      popupOverlay.style.display = 'none';  // Hide the popup
-    });
-
-    // Save outcome and send to server
-    saveOutcomeBtn.addEventListener('click', async () => {
-      const status = statusSelect.value;
-      const outcome = outcomeText.value.trim();
-      if (!outcome) return alert('Please provide an outcome description.');
-
-      const response = await fetch('/save-outcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId: selectedReportId, status, outcome })
-      });
-
-      if (response.ok) {
-        alert('Outcome saved successfully!');
-        popupOverlay.style.display = 'none';  // Hide the popup after saving
-        location.reload();  // Reload the page to update the report list
-      } else {
-        alert('Failed to save outcome.');
-      }
-    });
+    window.kick=async(s,u)=>{const r=prompt('Reason?');if(!r)return;await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serverId:s,action:'kick',targetUserId:u,reason:r})});};
+    window.ban=async(s,u)=>{const r=prompt('Reason?');if(!r)return;const d=prompt('Duration (min)');if(d===null)return;await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serverId:s,action:'ban',targetUserId:u,reason:r,duration:Number(d)})});};
   </script>
 </body>
 </html>
