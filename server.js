@@ -136,17 +136,23 @@ app.post('/send-moderation-notification', async (req, res) => {
     }
 
     // Check if the player has already seen the notification
-    const notificationStatus = await db.collection('notifications').findOne({ userId });
+    let notificationStatus = await db.collection('notifications').findOne({ userId });
 
-    if (!notificationStatus || notificationStatus.shown === false) {
+    // If no notification entry exists, create it with shown = false
+    if (!notificationStatus) {
+        notificationStatus = { shown: false };
+        await db.collection('notifications').insertOne({ userId, shown: false });
+    }
+
+    // If the player hasn't seen the notification yet
+    if (notificationStatus.shown === false) {
         // Emit a notification signal to the specific client via Socket.io
         io.to(userId).emit('moderationNotification', { userId });
 
-        // Update the status in the database to mark it as shown
+        // Update the status in the database to mark it as shown (true) after the notification is sent
         await db.collection('notifications').updateOne(
             { userId },
-            { $set: { shown: true } },
-            { upsert: true } // Create a new entry if it doesn't exist
+            { $set: { shown: true } }
         );
 
         console.log(`🔔 Sent moderation notification to user ID: ${userId}`);
