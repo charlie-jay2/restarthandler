@@ -5,30 +5,67 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Game Admin Panel</title>
   <style>
-    body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f2f2f2; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f2f2f2;
+    }
     button {
-      padding: 15px 25px;
-      font-size: 20px;
+      padding: 10px 16px;
+      font-size: 16px;
       border: none;
       background-color: #4CAF50;
       color: white;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
+      margin-right: 10px;
     }
     button:disabled {
       background-color: #ccc;
       cursor: not-allowed;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    h2 {
+      margin-top: 40px;
+    }
+    .control-bar {
+      margin-bottom: 30px;
+    }
   </style>
 </head>
 <body>
-  <button id="restartBtn">Restart Game</button>
-  <button id="maintenanceBtn" style="margin-left: 20px;">Toggle Maintenance</button>
-  
+
+  <div class="control-bar">
+    <button id="restartBtn">Restart Game</button>
+    <button id="maintenanceBtn">Toggle Maintenance</button>
+  </div>
+
+  <h2>Live Game Servers</h2>
+  <div id="servers"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
   <script>
     const restartBtn = document.getElementById('restartBtn');
     const maintenanceBtn = document.getElementById('maintenanceBtn');
-  
+    const serversDiv = document.getElementById('servers');
+    const socket = io();
+
     restartBtn.addEventListener('click', async () => {
       restartBtn.disabled = true;
       restartBtn.textContent = "Restarting...";
@@ -39,7 +76,7 @@
         restartBtn.textContent = "Restart Game";
       }, 7000);
     });
-  
+
     maintenanceBtn.addEventListener('click', async () => {
       maintenanceBtn.disabled = true;
       maintenanceBtn.textContent = "Toggling...";
@@ -48,13 +85,84 @@
       maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
       maintenanceBtn.disabled = false;
     });
-  
-    // Optional: Show current state on load
+
     window.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/maintenance-status');
       const data = await res.json();
       maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
     });
+
+    socket.on('serverUpdate', ({ serverId, players }) => {
+      renderServers(serverId, players);
+    });
+
+    function renderServers(serverId, players) {
+      const existingTable = document.getElementById(`table-${serverId}`);
+      if (existingTable) existingTable.remove();
+
+      const table = document.createElement('table');
+      table.id = `table-${serverId}`;
+      const header = `
+        <thead>
+          <tr>
+            <th colspan="4">Server ID: ${serverId}</th>
+          </tr>
+          <tr>
+            <th>Username</th>
+            <th>User ID</th>
+            <th>Kick</th>
+            <th>Ban</th>
+          </tr>
+        </thead>
+      `;
+      let body = '<tbody>';
+      players.forEach(player => {
+        body += `
+          <tr>
+            <td>${player.username}</td>
+            <td>${player.userId}</td>
+            <td><button onclick="kick('${serverId}', ${player.userId})">Kick</button></td>
+            <td><button onclick="ban('${serverId}', ${player.userId})">Ban</button></td>
+          </tr>
+        `;
+      });
+      body += '</tbody>';
+      table.innerHTML = header + body;
+      serversDiv.appendChild(table);
+    }
+
+    window.kick = async (serverId, userId) => {
+      const reason = prompt("Enter reason for kicking:");
+      if (!reason) return;
+      await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serverId,
+          action: 'kick',
+          targetUserId: userId,
+          reason
+        })
+      });
+    };
+
+    window.ban = async (serverId, userId) => {
+      const reason = prompt("Enter reason for banning:");
+      if (!reason) return;
+      const duration = prompt("Duration in minutes (0 for permanent):");
+      if (duration === null) return;
+      await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serverId,
+          action: 'ban',
+          targetUserId: userId,
+          reason,
+          duration: Number(duration)
+        })
+      });
+    };
   </script>
 </body>
 </html>
