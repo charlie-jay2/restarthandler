@@ -137,19 +137,19 @@
       // Load reports
       const reportRes = await fetch('/get-reports');
       const reports = await reportRes.json();
-      console.log('Fetched Reports:', reports);  // Log the reports to check for missing 'id'
+      console.log('Fetched Reports:', reports);  // Log the reports to check for missing '_id'
 
       if (Array.isArray(reports)) {
         reports.forEach(report => {
-          if (!report.id) {
-            console.error("Missing report id:", report);  // Log the report missing an ID
+          if (!report._id) {
+            console.error("Missing report _id:", report);  // Log the report missing an '_id'
           } else {
             const row = reportListTable.insertRow();
             row.innerHTML = `
-              <td>${report.id}</td>
+              <td>${report._id}</td>
               <td>${report.status}</td>
               <td>${report.outcome || 'Not Set'}</td>
-              <td><button onclick="editReport(${report.id})">Edit</button></td>
+              <td><button onclick="editReport('${report._id}')">Edit</button></td>
             `;
           }
         });
@@ -210,7 +210,7 @@
     const editReport = async (reportId) => {
       const res = await fetch(`/get-report/${reportId}`);
       const report = await res.json();
-      selectedReportId = report.id;
+      selectedReportId = report._id;
       statusSelect.value = report.status;
       outcomeText.value = report.outcome || '';
       popupOverlay.style.display = 'flex';
