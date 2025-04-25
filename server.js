@@ -157,6 +157,22 @@ app.post('/send-moderation-notification', async (req, res) => {
     res.sendStatus(200);
 });
 
+app.get('/check-notification-status', async (req, res) => {
+    const { userId } = req.query;
+    const rec = await db.collection('notifications').findOne({ userId });
+    res.json({ seen: rec?.shown === true });
+});
+
+// POST /acknowledge-notification  { userId }
+app.post('/acknowledge-notification', async (req, res) => {
+    const { userId } = req.body;
+    await db.collection('notifications').updateOne(
+        { userId },
+        { $set: { shown: true } },
+        { upsert: true }
+    );
+    res.sendStatus(200);
+});
 
 // Endpoint to check if player is banned
 app.get('/check-ban', async (req, res) => {
