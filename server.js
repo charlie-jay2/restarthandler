@@ -127,6 +127,36 @@ app.post('/command', async (req, res) => {
     res.sendStatus(200);
 });
 
+// Moderation Notifications
+app.post('/send-moderation-notification', async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Check if the player has already seen the notification
+    const notificationStatus = await db.collection('notifications').findOne({ userId });
+
+    if (!notificationStatus || notificationStatus.shown === false) {
+        // Emit a notification signal to all clients via Socket.io
+        io.emit('moderationNotification', { userId });
+
+        // Update the status in the database to mark it as shown
+        await db.collection('notifications').updateOne(
+            { userId },
+            { $set: { shown: true } },
+            { upsert: true } // Create a new entry if it doesn't exist
+        );
+
+        console.log(`🔔 Sent moderation notification to user ID: ${userId}`);
+    } else {
+        console.log(`🔔 User ID ${userId} has already seen the moderation notification.`);
+    }
+
+    res.sendStatus(200);
+});
+
 // Endpoint to check if player is banned
 app.get('/check-ban', async (req, res) => {
     const { userId } = req.query;

@@ -59,11 +59,31 @@
   <h2>Live Game Servers</h2>
   <div id="servers"></div>
 
+  <h2>Moderation Notifications</h2>
+  <div>
+    <input type="text" id="userIDInput" placeholder="Enter User ID" />
+    <button id="sendNotificationBtn">Send Notification</button>
+  </div>
+  <table id="moderationNotificationsTable">
+    <thead>
+      <tr>
+        <th>User ID</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Notifications will be added here -->
+    </tbody>
+  </table>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const restartBtn = document.getElementById('restartBtn');
     const maintenanceBtn = document.getElementById('maintenanceBtn');
     const serversDiv = document.getElementById('servers');
+    const sendNotificationBtn = document.getElementById('sendNotificationBtn');
+    const userIDInput = document.getElementById('userIDInput');
+    const moderationNotificationsTable = document.getElementById('moderationNotificationsTable').getElementsByTagName('tbody')[0];
     const socket = io();
 
     restartBtn.addEventListener('click', async () => {
@@ -94,6 +114,10 @@
 
     socket.on('serverUpdate', ({ serverId, players }) => {
       renderServers(serverId, players);
+    });
+
+    socket.on('moderationNotification', ({ userId }) => {
+      alert(`Moderation notification sent to user ${userId}`);
     });
 
     function renderServers(serverId, players) {
@@ -130,6 +154,25 @@
       table.innerHTML = header + body;
       serversDiv.appendChild(table);
     }
+
+    sendNotificationBtn.addEventListener('click', async () => {
+      const userID = userIDInput.value.trim();
+      if (!userID) {
+        alert('Please enter a valid User ID');
+        return;
+      }
+
+      // Send a signal to the game
+      await fetch('/send-moderation-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userID })
+      });
+
+      // Add to the table (for display purposes in the admin panel)
+      const row = moderationNotificationsTable.insertRow();
+      row.innerHTML = `<td>${userID}</td><td>Notification Sent</td>`;
+    });
 
     window.kick = async (serverId, userId) => {
       const reason = prompt("Enter reason for kicking:");
