@@ -49,11 +49,6 @@
     <a href="/reports">View Reports Page</a>
   </div>
 
-  <div id="ErrorGUI">
-    <div class="Title" id="ErrorTitle"></div>
-    <div class="Description" id="ErrorDescription"></div>
-  </div>
-
   <h2>Live Game Servers</h2>
   <div id="servers"></div>
 
@@ -91,34 +86,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    window.addEventListener('DOMContentLoaded', async () => {
-      const res = await fetch('/get-error');
-      const error = await res.json();
-      if (error.title && error.description) {
-        // Show the error message if it exists
-        document.getElementById('ErrorTitle').textContent = error.title;
-        document.getElementById('ErrorDescription').textContent = error.description;
-        document.getElementById('ErrorGUI').style.display = 'block';
-      }
-    });
-
-    // Set an error from the admin panel (example use)
-    async function setError(title, description, active) {
-      const response = await fetch('/set-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, active })
-      });
-      if (response.ok) {
-        // Optionally, update the UI after setting the error
-        window.location.reload(); // Or refresh part of the page as needed
-      }
-    }
-
-    // Example: Set an error with a button (this could be linked to an admin action)
-    setError("Critical Error", "The server is experiencing issues. Please be patient.", true);
-  </script>
   <script>
     const designatedIP = '86.14.107.152'; // Replace with your allowed IP
 
@@ -164,63 +131,128 @@
       setTimeout(async () => {
         await fetch('/reset-restart',{method:'POST'});
         restartBtn.disabled = false; restartBtn.textContent = "Restart Game";
-      }, 20000);
+      },7000);
     });
-    
+
     maintenanceBtn.addEventListener('click', async () => {
-      maintenanceBtn.disabled = true; maintenanceBtn.textContent = "Changing Maintenance Mode...";
-      const response = await fetch('/set-maintenance',{method:'POST'});
-      if (response.ok) {
-        maintenanceBtn.textContent = "Toggled Maintenance Mode";
-        setTimeout(() => {
-          maintenanceBtn.disabled = false;
-          maintenanceBtn.textContent = "Toggle Maintenance";
-        }, 2000);
+      maintenanceBtn.disabled = true; maintenanceBtn.textContent = "Toggling...";
+      const res = await fetch('/toggle-maintenance',{method:'POST'});
+      const data = await res.json();
+      maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
+      maintenanceBtn.disabled = false;
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const res = await fetch('/maintenance-status');
+      const data = await res.json();
+      maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
+      loadReports();
+    });
+
+    // Load and render reports
+    async function loadReports(){
+      reportListTable.innerHTML = '';
+      const r = await fetch('/get-reports');
+      const reports = await r.json();
+      console.log('Fetched Reports:', reports);
+      if (Array.isArray(reports)) {
+        reports.forEach(rp => {
+          console.log('Report Data:', rp); // Log to check the data structure
+          const ref = rp.reference;
+          const desc = rp.description || 'No description provided';  // Default to "No description provided"
+          const out = (rp.history && rp.history.length > 0) ? rp.history[rp.history.length - 1].note : 'Not Set';
+          const row = reportListTable.insertRow();
+          row.innerHTML = `
+            <td>${ref}</td>
+            <td>${rp.status}</td>
+            <td>${desc}</td> <!-- Display description -->
+            <td>${out}</td>
+            <td><button onclick="editReport('${ref}')">Edit</button></td>
+          `;
+        });
       }
-    });
-
-    sendNotificationBtn.addEventListener('click', () => {
-      const userID = userIDInput.value.trim();
-      if (userID !== "") {
-        socket.emit("send-notification", userID);  // Add notification feature
-      }
-    });
-
-    // Handling reports
-    socket.on('update-reports', (data) => {
-      const row = reportListTable.insertRow();
-      row.insertCell(0).textContent = data.reportID;
-      row.insertCell(1).textContent = data.status;
-      row.insertCell(2).textContent = data.description;
-      row.insertCell(3).textContent = data.outcome;
-      const actionCell = row.insertCell(4);
-      actionCell.innerHTML = `<button onclick="viewReport('${data.reportID}')">View</button>`;
-    });
-
-    // Show the popup when clicking a report row
-    function viewReport(reportID) {
-      selectedReference = reportID;
-      popupOverlay.style.display = 'flex';
     }
-    
-    // Save the outcome of a report
+
+    // Open edit popup
+    window.editReport = async (ref) => {
+      const res = await fetch(`/report-status?reference=${ref}`);
+      const rep = await res.json();
+      selectedReference = rep.reference;
+      statusSelect.value = rep.status;
+      outcomeText.value = '';
+      popupOverlay.style.display = 'flex';
+    };
+
+    closePopupBtn.addEventListener('click', ()=> popupOverlay.style.display = 'none');
+
+    // Save outcome
     saveOutcomeBtn.addEventListener('click', async () => {
-      const outcome = outcomeText.value;
       const status = statusSelect.value;
-      await fetch('/set-report-status', {
+      const note = outcomeText.value.trim();
+      if(!note) return alert('Enter an outcome note');
+      await fetch(`/reports/${selectedReference}/update`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status, note })
+      });
+      popupOverlay.style.display = 'none';
+      loadReports();
+    });
+
+    // Socket & moderation (unchanged)
+    socket.on('serverUpdate', ({serverId,players})=>{
+      const ex = document.getElementById(`table-${serverId}`);
+      if(ex) ex.remove();
+      const t = document.createElement('table'); t.id=`table-${serverId}`;
+      t.innerHTML=`<thead>
+        <tr><th colspan="4">Server ID: ${serverId}</th></tr>
+        <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
+      </thead>
+      <tbody>
+        ${players.map(p=>`
+          <tr>
+            <td>${p.username}</td>
+            <td>${p.userId}</td>
+            <td><button onclick="kick('${serverId}',${p.userId})">Kick</button></td>
+            <td><button onclick="ban('${serverId}',${p.userId})">Ban</button></td>
+          </tr>`).join('')}
+      </tbody>`;
+      serversDiv.appendChild(t);
+    });
+
+    sendNotificationBtn.addEventListener('click', async ()=> {
+      const u = userIDInput.value.trim();
+      if (!u) return alert('Enter valid User ID');
+      await fetch('/send-moderation-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: selectedReference, status, outcome })
+        body: JSON.stringify({ userId: u })
       });
-      outcomeText.value = "";
-      popupOverlay.style.display = 'none';
+      const row = moderationNotificationsTable.insertRow();
+      row.innerHTML = `<td>${u}</td><td>Notification Sent</td>`;
     });
 
-    // Close the popup
-    closePopupBtn.addEventListener('click', () => {
-      outcomeText.value = "";
-      popupOverlay.style.display = 'none';
-    });
+    window.kick = async (s, u) => {
+      const r = prompt('Reason?');
+      if (!r) return;
+      await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: s, action: 'kick', targetUserId: u, reason: r })
+      });
+    };
+
+    window.ban = async (s, u) => {
+      const r = prompt('Reason?');
+      if (!r) return;
+      const d = prompt('Duration (min)');
+      if (d === null) return;
+      await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: s, action: 'ban', targetUserId: u, reason: r, duration: Number(d) })
+      });
+    };
   </script>
 </body>
 </html>

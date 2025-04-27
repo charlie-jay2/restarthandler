@@ -264,34 +264,6 @@ app.get('/reports', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
-// Set error status (Fixed the client/db issue)
-app.post('/set-error', async (req, res) => {
-    const { title, description, active } = req.body;
-
-    if (typeof active !== 'boolean') {
-        return res.status(400).json({ error: 'Active status must be a boolean' });
-    }
-
-    await db.collection('errorStatus').updateOne(
-        { type: 'error' },
-        { $set: { title, description, isActive: active } },
-        { upsert: true }
-    );
-
-    res.sendStatus(200);
-});
-
-// Get error status (Fixed the client/db issue)
-app.get('/get-error-status', async (req, res) => {
-    const error = await db.collection('errorStatus').findOne({ type: 'error' });
-
-    res.json({
-        isActive: error?.isActive || false,
-        title: error?.title || '',
-        description: error?.description || ''
-    });
-});
-
 // Start the server
 server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
