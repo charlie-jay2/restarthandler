@@ -71,7 +71,7 @@
   <script>
     const designatedIP = '86.14.107.152'; // Replace with your allowed IP
 
-// Function to check the user's IP and restrict access
+    // Function to check the user's IP and restrict access
     async function checkIP() {
       try {
         const response = await fetch('https://api.ipify.org?format=json');
@@ -106,7 +106,7 @@
     let selectedReference = null;
     const socket = io();
 
-    // Restart / Maintenance buttons (unchanged) …
+    // Restart / Maintenance buttons (unchanged)
     restartBtn.addEventListener('click', async () => {
       restartBtn.disabled = true; restartBtn.textContent = "Restarting...";
       await fetch('/restart',{method:'POST'});
@@ -115,6 +115,7 @@
         restartBtn.disabled = false; restartBtn.textContent = "Restart Game";
       },7000);
     });
+
     maintenanceBtn.addEventListener('click', async () => {
       maintenanceBtn.disabled = true; maintenanceBtn.textContent = "Toggling...";
       const res = await fetch('/toggle-maintenance',{method:'POST'});
@@ -122,6 +123,7 @@
       maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
       maintenanceBtn.disabled = false;
     });
+
     window.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/maintenance-status');
       const data = await res.json();
@@ -161,6 +163,7 @@
       outcomeText.value = '';
       popupOverlay.style.display = 'flex';
     };
+
     closePopupBtn.addEventListener('click', ()=> popupOverlay.style.display = 'none');
 
     // Save outcome
@@ -177,7 +180,7 @@
       loadReports();
     });
 
-    // Socket & moderation (unchanged) …
+    // Socket & moderation (unchanged)
     socket.on('serverUpdate', ({serverId,players})=>{
       const ex = document.getElementById(`table-${serverId}`);
       if(ex) ex.remove();
@@ -198,14 +201,40 @@
         </tbody>`;
       serversDiv.appendChild(t);
     });
-    sendNotificationBtn.addEventListener('click', async ()=>{
-      const u=userIDInput.value.trim(); if(!u) return alert('Enter valid User ID');
-      await fetch('/send-moderation-notification',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u})});
-      const row=moderationNotificationsTable.insertRow();
-      row.innerHTML=`<td>${u}</td><td>Notification Sent</td>`;
+
+    sendNotificationBtn.addEventListener('click', async ()=> {
+      const u = userIDInput.value.trim();
+      if (!u) return alert('Enter valid User ID');
+      await fetch('/send-moderation-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u })
+      });
+      const row = moderationNotificationsTable.insertRow();
+      row.innerHTML = `<td>${u}</td><td>Notification Sent</td>`;
     });
-    window.kick=async(s,u)=>{const r=prompt('Reason?');if(!r)return;await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serverId:s,action:'kick',targetUserId:u,reason:r})});};
-    window.ban=async(s,u)=>{const r=prompt('Reason?');if(!r)return;const d=prompt('Duration (min)');if(d===null)return;await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serverId:s,action:'ban',targetUserId:u,reason:r,duration:Number(d)})});};
+
+    window.kick = async (s, u) => {
+      const r = prompt('Reason?');
+      if (!r) return;
+      await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: s, action: 'kick', targetUserId: u, reason: r })
+      });
+    };
+
+    window.ban = async (s, u) => {
+      const r = prompt('Reason?');
+      if (!r) return;
+      const d = prompt('Duration (min)');
+      if (d === null) return;
+      await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId: s, action: 'ban', targetUserId: u, reason: r, duration: Number(d) })
+      });
+    };
   </script>
 </body>
 </html>
