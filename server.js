@@ -264,36 +264,30 @@ app.get('/reports', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
-app.post('/set-error-status', async (req, res) => {
-    const { title, description, isActive } = req.body;
-    if (!title || !description) {
-        return res.status(400).json({ error: 'Title and description are required' });
+app.post('/set-error', async (req, res) => {
+    const { title, description, active } = req.body;
+
+    if (typeof active !== 'boolean') {
+        return res.status(400).json({ error: 'Active status must be a boolean' });
     }
 
-    const errorData = {
-        title,
-        description,
-        isActive: isActive || false,
-        timestamp: new Date().toISOString()
-    };
-
-    await db.collection('errors').updateOne(
-        { title }, // Use title as a unique identifier
-        { $set: errorData },
+    await client.db(dbName).collection('errorStatus').updateOne(
+        { type: 'error' },
+        { $set: { title, description, isActive: active } },
         { upsert: true }
     );
 
-    res.status(200).json({ message: 'Error status updated' });
+    res.sendStatus(200);
 });
 
-// Get Current Error Status
 app.get('/get-error-status', async (req, res) => {
-    const error = await db.collection('errors').findOne({ isActive: true }); // Get the active error status
-    if (error) {
-        res.json(error);
-    } else {
-        res.status(404).json({ error: 'No active error found' });
-    }
+    const error = await client.db(dbName).collection('errorStatus').findOne({ type: 'error' });
+
+    res.json({
+        isActive: error?.isActive || false,
+        title: error?.title || '',
+        description: error?.description || ''
+    });
 });
 
 // Start the server
