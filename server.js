@@ -5,7 +5,7 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const dotenv = require('dotenv');
-const { nanoid } = require('nanoid');    // add nanoid for unique codes
+const { nanoid } = require('nanoid'); // add nanoid for unique codes
 
 dotenv.config();
 
@@ -191,10 +191,11 @@ app.get('/check-ban', async (req, res) => {
     }
 });
 
+// Handle reports
 app.post('/reports', async (req, res) => {
-    const { reporterId, reportedId, description } = req.body;
-    if (!reporterId || !reportedId || !description) {
-        return res.status(400).json({ error: 'reporterId, reportedId and description are required' });
+    const { reporterId, reportedId, description, proof } = req.body;
+    if (!reporterId || !reportedId || !description || !proof) {
+        return res.status(400).json({ error: 'reporterId, reportedId, description, and proof are required' });
     }
     const reference = nanoid(8);
     const now = new Date().toISOString();
@@ -203,6 +204,7 @@ app.post('/reports', async (req, res) => {
         reporterId,
         reportedId,
         description,
+        proof, // Add proof field
         status: 'Received',
         history: [{ status: 'Received', time: now, note: '' }]
     };
@@ -220,6 +222,7 @@ app.get('/report-status', async (req, res) => {
         reference: report.reference,
         status: report.status,
         description: report.description,
+        proof: report.proof, // Include proof in the response
         history: report.history
     });
 });
