@@ -47,7 +47,7 @@
   <h3>Report List</h3>
   <table id="reportListTable">
     <thead>
-      <tr><th>Report ID</th><th>Status</th><th>Outcome</th><th>Actions</th></tr>
+      <tr><th>Report ID</th><th>Status</th><th>Description</th><th>Outcome</th><th>Actions</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -70,15 +70,15 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const designatedIP = '86.14.107.152'; // Replace with your allowed IP
-  
-    // Function to check the user's IP and restrict access
+
+// Function to check the user's IP and restrict access
     async function checkIP() {
       try {
         const response = await fetch('https://api.ipify.org?format=json');
         const data = await response.json();
         const userIP = data.ip;
         console.log('User IP:', userIP);
-  
+
         if (userIP !== designatedIP) {
           window.location.href = '/reports.html'; // Redirect to reports page if IP is not allowed
         }
@@ -87,10 +87,10 @@
         window.location.href = '/reports.html'; // Redirect if there's an issue fetching the IP
       }
     }
-  
+
     // Check the IP when the page loads
     window.addEventListener('DOMContentLoaded', checkIP);
-  
+
     const restartBtn = document.getElementById('restartBtn');
     const maintenanceBtn = document.getElementById('maintenanceBtn');
     const serversDiv = document.getElementById('servers');
@@ -105,55 +105,53 @@
     const closePopupBtn = document.getElementById('closePopupBtn');
     let selectedReference = null;
     const socket = io();
-  
+
     // Restart / Maintenance buttons (unchanged) …
     restartBtn.addEventListener('click', async () => {
       restartBtn.disabled = true; restartBtn.textContent = "Restarting...";
-      await fetch('/restart', { method: 'POST' });
+      await fetch('/restart',{method:'POST'});
       setTimeout(async () => {
-        await fetch('/reset-restart', { method: 'POST' });
+        await fetch('/reset-restart',{method:'POST'});
         restartBtn.disabled = false; restartBtn.textContent = "Restart Game";
-      }, 7000);
+      },7000);
     });
-  
     maintenanceBtn.addEventListener('click', async () => {
       maintenanceBtn.disabled = true; maintenanceBtn.textContent = "Toggling...";
-      const res = await fetch('/toggle-maintenance', { method: 'POST' });
+      const res = await fetch('/toggle-maintenance',{method:'POST'});
       const data = await res.json();
-      maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
+      maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
       maintenanceBtn.disabled = false;
     });
-  
     window.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/maintenance-status');
       const data = await res.json();
-      maintenanceBtn.textContent = data.status ? "Disable Maintenance" : "Enable Maintenance";
+      maintenanceBtn.textContent = data.status?"Disable Maintenance":"Enable Maintenance";
       loadReports();
     });
-  
+
     // Load and render reports
-    async function loadReports() {
+    async function loadReports(){
       reportListTable.innerHTML = '';
       const r = await fetch('/get-reports');
       const reports = await r.json();
       console.log('Fetched Reports:', reports);
-      if (Array.isArray(reports)) {
+      if(Array.isArray(reports)){
         reports.forEach(rp => {
           const ref = rp.reference;
+          const desc = rp.description || 'No description provided';  // Default to "No description provided"
           const out = (rp.history && rp.history.length > 0) ? rp.history[rp.history.length - 1].note : 'Not Set';
-          const description = rp.description || 'No Description Provided'; // Ensure a description is shown
           const row = reportListTable.insertRow();
           row.innerHTML = `
             <td>${ref}</td>
             <td>${rp.status}</td>
+            <td>${desc}</td> <!-- Display description -->
             <td>${out}</td>
-            <td>${description}</td> <!-- Add the description here -->
             <td><button onclick="editReport('${ref}')">Edit</button></td>
           `;
         });
       }
     }
-  
+
     // Open edit popup
     window.editReport = async (ref) => {
       const res = await fetch(`/report-status?reference=${ref}`);
@@ -163,35 +161,34 @@
       outcomeText.value = '';
       popupOverlay.style.display = 'flex';
     };
-  
-    closePopupBtn.addEventListener('click', () => popupOverlay.style.display = 'none');
-  
+    closePopupBtn.addEventListener('click', ()=> popupOverlay.style.display = 'none');
+
     // Save outcome
     saveOutcomeBtn.addEventListener('click', async () => {
       const status = statusSelect.value;
       const note = outcomeText.value.trim();
-      if (!note) return alert('Enter an outcome note');
+      if(!note) return alert('Enter an outcome note');
       await fetch(`/reports/${selectedReference}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ status, note })
       });
       popupOverlay.style.display = 'none';
       loadReports();
     });
-  
+
     // Socket & moderation (unchanged) …
-    socket.on('serverUpdate', ({ serverId, players }) => {
+    socket.on('serverUpdate', ({serverId,players})=>{
       const ex = document.getElementById(`table-${serverId}`);
-      if (ex) ex.remove();
-      const t = document.createElement('table'); t.id = `table-${serverId}`;
-      t.innerHTML = `
+      if(ex) ex.remove();
+      const t = document.createElement('table'); t.id=`table-${serverId}`;
+      t.innerHTML=`
         <thead>
           <tr><th colspan="4">Server ID: ${serverId}</th></tr>
           <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
         </thead>
         <tbody>
-          ${players.map(p => `
+          ${players.map(p=>`
             <tr>
               <td>${p.username}</td>
               <td>${p.userId}</td>
@@ -201,25 +198,14 @@
         </tbody>`;
       serversDiv.appendChild(t);
     });
-  
-    sendNotificationBtn.addEventListener('click', async () => {
-      const u = userIDInput.value.trim(); if (!u) return alert('Enter valid User ID');
-      await fetch('/send-moderation-notification', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: u }) });
-      const row = moderationNotificationsTable.insertRow();
-      row.innerHTML = `<td>${u}</td><td>Notification Sent</td>`;
+    sendNotificationBtn.addEventListener('click', async ()=>{
+      const u=userIDInput.value.trim(); if(!u) return alert('Enter valid User ID');
+      await fetch('/send-moderation-notification',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u})});
+      const row=moderationNotificationsTable.insertRow();
+      row.innerHTML=`<td>${u}</td><td>Notification Sent</td>`;
     });
-  
-    window.kick = async (s, u) => {
-      const r = prompt('Reason?'); if (!r) return;
-      await fetch('/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serverId: s, action: 'kick', targetUserId: u, reason: r }) });
-    };
-  
-    window.ban = async (s, u) => {
-      const r = prompt('Reason?'); if (!r) return;
-      const d = prompt('Duration (min)'); if (d === null) return;
-      await fetch('/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serverId: s, action: 'ban', targetUserId: u, reason: r, duration: Number(d) }) });
-    };
+    window.kick=async(s,u)=>{const r=prompt('Reason?');if(!r)return;await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serverId:s,action:'kick',targetUserId:u,reason:r})});};
+    window.ban=async(s,u)=>{const r=prompt('Reason?');if(!r)return;const d=prompt('Duration (min)');if(d===null)return;await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serverId:s,action:'ban',targetUserId:u,reason:r,duration:Number(d)})});};
   </script>
-  
 </body>
 </html>
