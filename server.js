@@ -197,6 +197,13 @@ app.post('/reports', async (req, res) => {
     if (!reporterId || !reportedId || !description) {
         return res.status(400).json({ error: 'reporterId, reportedId, description are required' });
     }
+
+    // Check if this report already exists by reporterId, reportedId, and description
+    const existingReport = await db.collection('reports').findOne({ reporterId, reportedId, description });
+    if (existingReport) {
+        return res.status(400).json({ error: 'This report has already been submitted' });
+    }
+
     const reference = nanoid(8);
     const now = new Date().toISOString();
     const doc = {
@@ -207,6 +214,7 @@ app.post('/reports', async (req, res) => {
         status: 'Received',
         history: [{ status: 'Received', time: now, note: '' }]
     };
+
     await db.collection('reports').insertOne(doc);
     res.json({ reference });
 });
