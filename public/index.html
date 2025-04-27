@@ -137,8 +137,9 @@
       const r = await fetch('/get-reports');
       const reports = await r.json();
       console.log('Fetched Reports:', reports);
-      if(Array.isArray(reports)){
+      if (Array.isArray(reports)) {
         reports.forEach(rp => {
+          console.log('Report Data:', rp); // Log to check the data structure
           const ref = rp.reference;
           const desc = rp.description || 'No description provided';  // Default to "No description provided"
           const out = (rp.history && rp.history.length > 0) ? rp.history[rp.history.length - 1].note : 'Not Set';
@@ -185,20 +186,19 @@
       const ex = document.getElementById(`table-${serverId}`);
       if(ex) ex.remove();
       const t = document.createElement('table'); t.id=`table-${serverId}`;
-      t.innerHTML=`
-        <thead>
-          <tr><th colspan="4">Server ID: ${serverId}</th></tr>
-          <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
-        </thead>
-        <tbody>
-          ${players.map(p=>`
-            <tr>
-              <td>${p.username}</td>
-              <td>${p.userId}</td>
-              <td><button onclick="kick('${serverId}',${p.userId})">Kick</button></td>
-              <td><button onclick="ban('${serverId}',${p.userId})">Ban</button></td>
-            </tr>`).join('')}
-        </tbody>`;
+      t.innerHTML=`<thead>
+        <tr><th colspan="4">Server ID: ${serverId}</th></tr>
+        <tr><th>Username</th><th>User ID</th><th>Kick</th><th>Ban</th></tr>
+      </thead>
+      <tbody>
+        ${players.map(p=>`
+          <tr>
+            <td>${p.username}</td>
+            <td>${p.userId}</td>
+            <td><button onclick="kick('${serverId}',${p.userId})">Kick</button></td>
+            <td><button onclick="ban('${serverId}',${p.userId})">Ban</button></td>
+          </tr>`).join('')}
+      </tbody>`;
       serversDiv.appendChild(t);
     });
 
