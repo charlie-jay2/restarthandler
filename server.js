@@ -264,6 +264,38 @@ app.get('/reports', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
+app.post('/set-error-status', async (req, res) => {
+    const { title, description, isActive } = req.body;
+    if (!title || !description) {
+        return res.status(400).json({ error: 'Title and description are required' });
+    }
+
+    const errorData = {
+        title,
+        description,
+        isActive: isActive || false,
+        timestamp: new Date().toISOString()
+    };
+
+    await db.collection('errors').updateOne(
+        { title }, // Use title as a unique identifier
+        { $set: errorData },
+        { upsert: true }
+    );
+
+    res.status(200).json({ message: 'Error status updated' });
+});
+
+// Get Current Error Status
+app.get('/get-error-status', async (req, res) => {
+    const error = await db.collection('errors').findOne({ isActive: true }); // Get the active error status
+    if (error) {
+        res.json(error);
+    } else {
+        res.status(404).json({ error: 'No active error found' });
+    }
+});
+
 // Start the server
 server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);

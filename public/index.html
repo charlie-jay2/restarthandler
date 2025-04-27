@@ -21,6 +21,24 @@
     .popup { background: white; padding: 20px; border-radius: 10px; width: 400px; text-align: center; }
     .popup input, .popup textarea, .popup select { width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
     .popup button { margin-top: 10px; }
+    #ErrorGUI {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 300px;
+      padding: 10px;
+      background-color: rgba(255, 0, 0, 0.8);
+      color: white;
+      border-radius: 8px;
+      display: none; /* Hidden by default */
+    }
+    #ErrorGUI .Title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #ErrorGUI .Description {
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -29,6 +47,11 @@
     <button id="restartBtn">Restart Game</button>
     <button id="maintenanceBtn">Toggle Maintenance</button>
     <a href="/reports">View Reports Page</a>
+  </div>
+
+  <div id="ErrorGUI">
+    <div class="Title" id="ErrorTitle"></div>
+    <div class="Description" id="ErrorDescription"></div>
   </div>
 
   <h2>Live Game Servers</h2>
@@ -68,6 +91,34 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      const res = await fetch('/get-error');
+      const error = await res.json();
+      if (error.title && error.description) {
+        // Show the error message if it exists
+        document.getElementById('ErrorTitle').textContent = error.title;
+        document.getElementById('ErrorDescription').textContent = error.description;
+        document.getElementById('ErrorGUI').style.display = 'block';
+      }
+    });
+
+    // Set an error from the admin panel (example use)
+    async function setError(title, description, active) {
+      const response = await fetch('/set-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, active })
+      });
+      if (response.ok) {
+        // Optionally, update the UI after setting the error
+        window.location.reload(); // Or refresh part of the page as needed
+      }
+    }
+
+    // Example: Set an error with a button (this could be linked to an admin action)
+    setError("Critical Error", "The server is experiencing issues. Please be patient.", true);
+  </script>
   <script>
     const designatedIP = '86.14.107.152'; // Replace with your allowed IP
 
